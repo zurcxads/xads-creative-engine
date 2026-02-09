@@ -78,7 +78,16 @@ export default function Home() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchCreatives() }, [fetchCreatives])
+  useEffect(() => {
+    let mounted = true
+    supabase.from('creatives').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+      if (!mounted) return
+      if (error) { setDbError(true); setCreatives([]) }
+      else { setDbError(false); setCreatives(data || []) }
+      setLoading(false)
+    })
+    return () => { mounted = false }
+  }, [])
 
   const saveCreative = async (c: Creative) => {
     const now = new Date().toISOString()
