@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #000;
+  --surface: #080808;
+  --card: #0a0a0a;
+  --card-border: rgba(255, 255, 255, 0.03);
+  --accent: #7c3aed;
+  --text: #e5e5e5;
+  --text-secondary: #888;
+  --text-muted: #555;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(124, 58, 237, 0.3);
+}
+
+input, select, textarea {
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #e5e5e5;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.skeleton {
+  animation: pulse 1.5s ease-in-out infinite;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
