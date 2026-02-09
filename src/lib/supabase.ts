@@ -33,6 +33,31 @@ export const STATUSES = ['draft', 'ready', 'testing', 'winner', 'loser', 'archiv
 export const PLATFORMS = ['meta', 'google', 'tiktok'] as const
 export const TYPES = ['image', 'video', 'copy', 'prompt'] as const
 
+export interface Swipe {
+  id?: string
+  name: string
+  source_url: string
+  screenshot_url: string
+  offer: string
+  platform: string
+  hook: string
+  angle: string
+  body_copy: string
+  cta: string
+  why_it_works: string
+  target_audience: string
+  emotional_trigger: string
+  format: string
+  tags: string
+  notes: string
+  metadata: Record<string, unknown>
+  created_at?: string
+}
+
+export const SWIPE_ANGLES = ['urgency', 'social-proof', 'fear', 'curiosity', 'benefit', 'testimonial', 'question'] as const
+export const SWIPE_PLATFORMS = ['meta', 'google', 'tiktok', 'youtube', 'native', 'email', 'other'] as const
+export const SWIPE_FORMATS = ['static', 'video', 'carousel', 'story'] as const
+
 export const STATUS_COLORS: Record<string, string> = {
   winner: '#10b981',
   loser: '#ef4444',

@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, Creative, OFFERS, ANGLES, FORMATS, STATUSES, PLATFORMS, TYPES, STATUS_COLORS } from '@/lib/supabase'
+import { supabase, Creative, Swipe, OFFERS, ANGLES, FORMATS, STATUSES, PLATFORMS, TYPES, STATUS_COLORS, SWIPE_ANGLES, SWIPE_PLATFORMS, SWIPE_FORMATS } from '@/lib/supabase'
 import { generateCreatives, generateVideoPrompts } from '@/lib/templates'
-import { Image as ImageIcon, Video, FileText, Wand2, Plus, X, Copy, Check, ChevronDown, BarChart3, Sparkles, Film, Library as LibraryIcon, Search } from 'lucide-react'
+import { Image as ImageIcon, Video, FileText, Wand2, Plus, X, Copy, Check, ChevronDown, BarChart3, Sparkles, Film, Library as LibraryIcon, Search, BookOpen, Shuffle } from 'lucide-react'
 
-type Tab = 'library' | 'generate' | 'prompts' | 'analytics'
+type Tab = 'library' | 'swipes' | 'generate' | 'prompts' | 'analytics'
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   image: <ImageIcon size={14} />,
@@ -64,6 +64,49 @@ export default function Home() {
   const [promptTone, setPromptTone] = useState('professional')
   const [promptResults, setPromptResults] = useState<ReturnType<typeof generateVideoPrompts> | null>(null)
 
+  // Swipes tab
+  const EMPTY_SWIPE: Swipe = { name: '', source_url: '', screenshot_url: '', offer: '', platform: '', hook: '', angle: '', body_copy: '', cta: '', why_it_works: '', target_audience: '', emotional_trigger: '', format: 'static', tags: '', notes: '', metadata: {} }
+  const [swipes, setSwipes] = useState<Swipe[]>([])
+  const [swipeForm, setSwipeForm] = useState<Swipe>({ ...EMPTY_SWIPE })
+  const [showSwipeForm, setShowSwipeForm] = useState(false)
+  const [swipeFilterOffer, setSwipeFilterOffer] = useState('')
+  const [swipeFilterAngle, setSwipeFilterAngle] = useState('')
+  const [swipeFilterPlatform, setSwipeFilterPlatform] = useState('')
+  const [selectedSwipe, setSelectedSwipe] = useState<Swipe | null>(null)
+
+  const fetchSwipes = useCallback(async () => {
+    const { data } = await supabase.from('swipes').select('*').order('created_at', { ascending: false })
+    setSwipes(data || [])
+  }, [])
+
+  const saveSwipe = async () => {
+    const payload = { ...swipeForm, created_at: new Date().toISOString() }
+    await supabase.from('swipes').insert(payload)
+    setSwipeForm({ ...EMPTY_SWIPE })
+    setShowSwipeForm(false)
+    fetchSwipes()
+  }
+
+  const deleteSwipe = async (id: string) => {
+    await supabase.from('swipes').delete().eq('id', id)
+    setSelectedSwipe(null)
+    fetchSwipes()
+  }
+
+  const remixSwipe = (s: Swipe) => {
+    setGenOffer(s.offer || 'windows')
+    setGenAngle(s.angle || 'urgency')
+    setTab('generate')
+    setSelectedSwipe(null)
+  }
+
+  const filteredSwipes = swipes.filter(s => {
+    if (swipeFilterOffer && s.offer !== swipeFilterOffer) return false
+    if (swipeFilterAngle && s.angle !== swipeFilterAngle) return false
+    if (swipeFilterPlatform && s.platform !== swipeFilterPlatform) return false
+    return true
+  })
+
   const fetchCreatives = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase.from('creatives').select('*').order('created_at', { ascending: false })
@@ -85,6 +128,10 @@ export default function Home() {
       if (error) { setDbError(true); setCreatives([]) }
       else { setDbError(false); setCreatives(data || []) }
       setLoading(false)
+    })
+    supabase.from('swipes').select('*').order('created_at', { ascending: false }).then(({ data }) => {
+      if (!mounted) return
+      setSwipes(data || [])
     })
     return () => { mounted = false }
   }, [])
@@ -152,6 +199,7 @@ export default function Home() {
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'library', label: 'Library', icon: <LibraryIcon size={14} /> },
+    { id: 'swipes', label: 'Swipes', icon: <BookOpen size={14} /> },
     { id: 'generate', label: 'Generate', icon: <Sparkles size={14} /> },
     { id: 'prompts', label: 'Prompts', icon: <Film size={14} /> },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={14} /> },
@@ -270,6 +318,133 @@ export default function Home() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* SWIPES TAB */}
+        {tab === 'swipes' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold">Swipe File</h2>
+              <button
+                onClick={() => setShowSwipeForm(!showSwipeForm)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white text-[13px] font-medium transition-all duration-150 hover:brightness-110"
+                style={{ background: '#7c3aed' }}
+              >
+                <Plus size={14} /> Add Swipe
+              </button>
+            </div>
+
+            {showSwipeForm && (
+              <div className="mb-4 p-4 rounded-lg border" style={{ background: '#0a0a0a', borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                  <Field label="Name"><input value={swipeForm.name} onChange={e => setSwipeForm({ ...swipeForm, name: e.target.value })} className="w-full" placeholder="Ad name" /></Field>
+                  <Field label="Source URL"><input value={swipeForm.source_url} onChange={e => setSwipeForm({ ...swipeForm, source_url: e.target.value })} className="w-full" placeholder="https://..." /></Field>
+                  <Field label="Offer"><input value={swipeForm.offer} onChange={e => setSwipeForm({ ...swipeForm, offer: e.target.value })} className="w-full" placeholder="windows, solar..." /></Field>
+                  <Field label="Platform">
+                    <select value={swipeForm.platform} onChange={e => setSwipeForm({ ...swipeForm, platform: e.target.value })} className="w-full">
+                      <option value="">Select</option>
+                      {SWIPE_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Format">
+                    <select value={swipeForm.format} onChange={e => setSwipeForm({ ...swipeForm, format: e.target.value })} className="w-full">
+                      {SWIPE_FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Angle">
+                    <select value={swipeForm.angle} onChange={e => setSwipeForm({ ...swipeForm, angle: e.target.value })} className="w-full">
+                      <option value="">Select</option>
+                      {SWIPE_ANGLES.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <Field label="Hook"><textarea value={swipeForm.hook} onChange={e => setSwipeForm({ ...swipeForm, hook: e.target.value })} className="w-full h-16" placeholder="Opening hook..." /></Field>
+                  <Field label="Body Copy"><textarea value={swipeForm.body_copy} onChange={e => setSwipeForm({ ...swipeForm, body_copy: e.target.value })} className="w-full h-16" placeholder="Main copy..." /></Field>
+                  <Field label="CTA"><input value={swipeForm.cta} onChange={e => setSwipeForm({ ...swipeForm, cta: e.target.value })} className="w-full" placeholder="Call to action" /></Field>
+                  <Field label="Why It Works"><textarea value={swipeForm.why_it_works} onChange={e => setSwipeForm({ ...swipeForm, why_it_works: e.target.value })} className="w-full h-16" placeholder="Analysis..." /></Field>
+                  <Field label="Target Audience"><input value={swipeForm.target_audience} onChange={e => setSwipeForm({ ...swipeForm, target_audience: e.target.value })} className="w-full" placeholder="Who is this for?" /></Field>
+                  <Field label="Emotional Trigger"><input value={swipeForm.emotional_trigger} onChange={e => setSwipeForm({ ...swipeForm, emotional_trigger: e.target.value })} className="w-full" placeholder="Fear, FOMO, hope..." /></Field>
+                </div>
+                <Field label="Tags"><input value={swipeForm.tags} onChange={e => setSwipeForm({ ...swipeForm, tags: e.target.value })} className="w-full" placeholder="Comma separated tags" /></Field>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={saveSwipe} className="px-4 py-2 rounded-md text-white text-[13px] font-medium hover:brightness-110" style={{ background: '#7c3aed' }}>Save Swipe</button>
+                  <button onClick={() => { setShowSwipeForm(false); setSwipeForm({ ...EMPTY_SWIPE }) }} className="px-4 py-2 rounded-md text-[#888] text-[13px] bg-[#1a1a1a] hover:bg-[#252525]">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <FilterSelect label="Offer" value={swipeFilterOffer} onChange={setSwipeFilterOffer} options={[...new Set(swipes.map(s => s.offer).filter(Boolean))]} />
+              <FilterSelect label="Angle" value={swipeFilterAngle} onChange={setSwipeFilterAngle} options={[...SWIPE_ANGLES]} />
+              <FilterSelect label="Platform" value={swipeFilterPlatform} onChange={setSwipeFilterPlatform} options={[...SWIPE_PLATFORMS]} />
+            </div>
+
+            {/* Grid */}
+            {filteredSwipes.length === 0 ? (
+              <div className="text-center py-20 text-[#555] text-sm">
+                {swipes.length === 0 ? 'No swipes yet. Click "Add Swipe" to start building your swipe file.' : 'No swipes match your filters.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {filteredSwipes.map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => setSelectedSwipe(s)}
+                    className="rounded-lg border cursor-pointer transition-all duration-150 hover:border-white/[0.08] hover:brightness-110 p-3"
+                    style={{ background: '#0a0a0a', borderColor: 'rgba(255,255,255,0.03)' }}
+                  >
+                    <div className="text-[13px] font-bold truncate mb-2">{s.name || 'Untitled'}</div>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {s.offer && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.05] text-[#888]">{s.offer}</span>}
+                      {s.platform && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.05] text-[#888]">{s.platform}</span>}
+                      {s.angle && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-400">{s.angle}</span>}
+                    </div>
+                    {s.hook && <p className="text-[11px] leading-tight mb-2 line-clamp-2" style={{ color: '#888' }}>{s.hook}</p>}
+                    {s.why_it_works && <p className="text-[10px] leading-tight mb-2 line-clamp-2" style={{ color: '#666' }}>{s.why_it_works}</p>}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.05] text-[#666]">{s.format}</span>
+                      <span className="text-[10px]" style={{ color: '#555' }}>{s.created_at ? new Date(s.created_at).toLocaleDateString() : ''}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Swipe Detail Modal */}
+        {selectedSwipe && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 px-4" style={{ background: 'rgba(0,0,0,0.8)' }} onClick={() => setSelectedSwipe(null)}>
+            <div className="w-full max-w-lg rounded-xl border p-5 max-h-[85vh] overflow-y-auto" style={{ background: '#0a0a0a', borderColor: 'rgba(255,255,255,0.06)' }} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold">{selectedSwipe.name || 'Untitled Swipe'}</h3>
+                <button onClick={() => setSelectedSwipe(null)} className="text-[#555] hover:text-white"><X size={16} /></button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {selectedSwipe.offer && <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.05] text-[#888]">{selectedSwipe.offer}</span>}
+                {selectedSwipe.platform && <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.05] text-[#888]">{selectedSwipe.platform}</span>}
+                {selectedSwipe.angle && <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-400">{selectedSwipe.angle}</span>}
+                {selectedSwipe.format && <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.05] text-[#666]">{selectedSwipe.format}</span>}
+              </div>
+              {selectedSwipe.source_url && <div className="mb-3"><label className="text-[11px] text-[#555] block mb-1">Source</label><a href={selectedSwipe.source_url} target="_blank" rel="noopener noreferrer" className="text-[12px] text-violet-400 hover:underline break-all">{selectedSwipe.source_url}</a></div>}
+              {selectedSwipe.hook && <div className="mb-3"><label className="text-[11px] text-[#555] block mb-1">Hook</label><p className="text-[12px] text-[#ccc]">{selectedSwipe.hook}</p></div>}
+              {selectedSwipe.body_copy && <div className="mb-3"><label className="text-[11px] text-[#555] block mb-1">Body Copy</label><p className="text-[12px] text-[#ccc] whitespace-pre-wrap">{selectedSwipe.body_copy}</p></div>}
+              {selectedSwipe.cta && <div className="mb-3"><label className="text-[11px] text-[#555] block mb-1">CTA</label><p className="text-[12px] text-[#ccc]">{selectedSwipe.cta}</p></div>}
+              {selectedSwipe.why_it_works && <div className="mb-3"><label className="text-[11px] text-[#555] block mb-1">Why It Works</label><p className="text-[12px] text-[#ccc] whitespace-pre-wrap">{selectedSwipe.why_it_works}</p></div>}
+              {selectedSwipe.target_audience && <div className="mb-3"><label className="text-[11px] text-[#555] block mb-1">Target Audience</label><p className="text-[12px] text-[#ccc]">{selectedSwipe.target_audience}</p></div>}
+              {selectedSwipe.emotional_trigger && <div className="mb-3"><label className="text-[11px] text-[#555] block mb-1">Emotional Trigger</label><p className="text-[12px] text-[#ccc]">{selectedSwipe.emotional_trigger}</p></div>}
+              {selectedSwipe.tags && <div className="mb-3"><label className="text-[11px] text-[#555] block mb-1">Tags</label><div className="flex flex-wrap gap-1">{selectedSwipe.tags.split(',').map((t, i) => <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.05] text-[#888]">{t.trim()}</span>)}</div></div>}
+              <div className="flex gap-2 pt-3 border-t border-white/[0.04]">
+                <button onClick={() => remixSwipe(selectedSwipe)} className="flex items-center gap-1.5 px-4 py-2 rounded-md text-white text-[13px] font-medium hover:brightness-110" style={{ background: '#7c3aed' }}>
+                  <Shuffle size={14} /> Remix
+                </button>
+                <button onClick={() => { if (selectedSwipe.id) deleteSwipe(selectedSwipe.id) }} className="px-4 py-2 rounded-md text-red-400 text-[13px] bg-red-500/10 hover:bg-red-500/20">Delete</button>
+                <button onClick={() => setSelectedSwipe(null)} className="px-4 py-2 rounded-md text-[#888] text-[13px] bg-[#1a1a1a] hover:bg-[#252525]">Close</button>
+              </div>
+            </div>
           </div>
         )}
 
